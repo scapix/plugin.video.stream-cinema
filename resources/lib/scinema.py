@@ -487,7 +487,8 @@ class StreamCinemaContentProvider(ContentProvider):
                 'dtitle': item['title'],
                 'force': 'true'
             })
-            menu.update({"$30949": params})
+            if 'video' in data['type']:
+                menu.update({"$30949": params})
             try:
                 id = int(data['id'])
                 #menu.update({"report stream": {"action": "report", "id": data['id'], "title": data['title']}})
