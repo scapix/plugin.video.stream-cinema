@@ -204,7 +204,7 @@ msgid "Subscription service sleep on start (minutes)"
 msgstr ""
 
 msgctxt "#30403"
-msgid "Default show check time (days)"
+msgid "Default subscription check time (days)"
 msgstr ""
 
 msgctxt "#30404"
@@ -212,14 +212,18 @@ msgid "Automatically add movies to the library"
 msgstr ""
 
 msgctxt "#30405"
-msgid "Check for new episodes"
+msgid "Check for new subscription content"
 msgstr ""
 
 msgctxt "#30406"
 msgid "Automatically add Trakt watchlist to the library"
 msgstr ""
 
-#empty strings from id 30406 to 30499
+msgctxt "#30407"
+msgid "[COLOR red]Empty[/COLOR] (You need to subscribe to some TVShow or Trakt List)"
+msgstr ""
+
+#empty strings from id 30408 to 30499
 
 msgctxt "#30500"
 msgid "Run internet speed test..."

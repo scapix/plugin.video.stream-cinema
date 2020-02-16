@@ -39,7 +39,7 @@ msgstr "Sťahovanie"
 
 msgctxt "#30040"
 msgid "Subscriptions"
-msgstr "Knižnica"
+msgstr "Odbery"
 
 msgctxt "#30050"
 msgid "SpeedTest"
@@ -178,20 +178,24 @@ msgid "Subscription service sleep on start (minutes)"
 msgstr "Oneskoriť štart služby o (minúty)"
 
 msgctxt "#30403"
-msgid "Default show check time (days)"
-msgstr "Predvolený čas pre obnovu seriálu (dni)"
+msgid "Default subscription check time (days)"
+msgstr "Predvolený čas pre obnovu odberov (dni)"
 
 msgctxt "#30404"
 msgid "Automatically add movies to the library"
 msgstr "Automaticky pridávať filmy do knižnice"
 
 msgctxt "#30405"
-msgid "Check for new episodes"
-msgstr "Skontrolovať nové časti"
+msgid "Check for new subscription content"
+msgstr "Skontrolovať nový obsah odberov"
 
 msgctxt "#30406"
 msgid "Automatically add Trakt watchlist to the library"
 msgstr "Automaticky pridávať Trakt watchlist do knižnice"
+
+msgctxt "#30407"
+msgid "[COLOR red]Empty[/COLOR] (You need to subscribe to some TVShow or Trakt List)"
+msgstr "[COLOR red]Žiadny odber[/COLOR] (prihláste sa k odberu seriálu alebo Trakt zoznamu)"
 
 msgctxt "#30500"
 msgid "Run internet speed test..."

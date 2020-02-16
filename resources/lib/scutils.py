@@ -26,6 +26,7 @@ import xbmcvfs
 import xmlrpclib
 import zlib
 import random
+import hashlib
 from dialogselect import DialogSelect
 from collections import defaultdict
 from provider import ResolveException
@@ -251,6 +252,7 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
         if not error and new_items and not ('update' in params) and not (
                 'notify' in params):
             self.showNotification(self.getString(30901), 'New content')
+            util.debug("[SC] UpdateLibrary add_multi_item")
             xbmc.executebuiltin('UpdateLibrary(video)')
         elif not error and not ('notify' in params):
             self.showNotification(self.getString(30901), 'No new content')
@@ -278,22 +280,22 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
         return str(out)
 
     @bug.buggalo_try_except({'method': 'scutils.add_item_trakt'})
-    def add_item_trakt(self, params):
+    def add_item_trakt(self, params, addToSubscription=False, data=None):
+        error = False
+        new_items = False
         if trakt.getTraktCredentialsInfo() == True:
-            util.debug("[SC] add_item_trakt: %s" % str(params))
+            # util.debug("[SC] add_item_trakt: %s" % str(params))
             user = params['tu'] if 'tu' in params else 'me'
             __, ids, __ = trakt.getList(params['tl'], user=user)
             data = self.provider._json(self.provider._url("/Search/getTrakt"),
                                        {'ids': json.dumps(ids)})
             if 'menu' in data:
-                error = False
-                new = False
                 e = False
                 n = False
 
                 dialog = sctop.progressDialogBG
-                dialog.create('Stream Cinema CZ & SK',
-                              'Adding Trakt watchlist to library')
+                dialog.create(self.encode('Stream Cinema CZ & SK'),
+                              self.encode('Adding Trakt list to library - %s' % params['title']))
                 total = float(len(data['menu']))
                 num = 0
                 for i in data['menu']:
@@ -306,30 +308,56 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                     #     return
                     try:
                         dialog.update(int(perc),
-                                      "Adding Trakt watchlist to library",
-                                      "%s" % (i['title']))
+                                      self.encode('Adding Trakt list to library - %s' % params['title']),
+                                      self.encode("%s" % (i['title'])))
                     except Exception:
                         util.debug('[SC] ERR: %s' %
                                    str(traceback.format_exc()))
                         pass
                     (e, n) = self.add_item({
                         'notify': False,
+                        'update': False,
                         'id': i['id']
                     }, False)
 
                     error |= e
-                    new |= n
+                    new_items |= n
 
                 dialog.close()
-                if not error and new:
-                    self.showNotification(self.getString(30901), 'New content')
-                    xbmc.executebuiltin('UpdateLibrary(video)')
+
+                if not error and addToSubscription:
+                    # util.debug("[SCS] adding trakt list to subscription [%s]" % str(params['tl']))
+                    subs = self.getSubs()
+
+                    if 'traktwatchlist' in subs:
+                        data = subs['traktwatchlist']
+                    else:
+                        data = {'last_run': 0 }
+                    if not 'lists' in data:
+                        data['lists'] = {}
+
+                    subid = hashlib.md5(str(user+params['tl'])).hexdigest()
+                    # util.debug("[SCS] data [%s]" % str(data)))
+                    if not (subid in data['lists']):
+                        data['lists'].update({ subid: { 'title':params['title'] , 'tu': user, 'tl': params['tl'] } })
+                        subs['traktwatchlist'] = data
+                        self.setSubs(subs)
+                        # util.debug("[SCS] added trakt list to subscription [%s]" % str(user))
+
+                util.debug("[SC] UpdateLibrary add_item_trakt - new items found ? %s" % new_items)
+                util.debug("[SC] UpdateLibrary add_item_trakt - noupdate in params ? %s" % ('noupdate' in params))
+                if not error and new_items:
+                    # self.showNotification(self.getString(30901), 'New content')
+                    if not ('noupdate' in params):
+                        util.debug("[SC] UpdateLibrary add_item_trakt")
+                        xbmc.executebuiltin('UpdateLibrary(video)')
                 elif not error:
-                    self.showNotification(self.getString(30901),
-                                          'No new content')
+                    # self.showNotification(self.getString(30901), 'No new content')
+                    pass
                 elif error:
                     self.showNotification('Failed, Please check kodi logs',
                                           'Linking')
+        return (error, new_items)
 
     def add_item_lastrun(self, ids):
         error = False
@@ -408,6 +436,7 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
         if not error and new_items and not ('update' in params) and not (
                 'notify' in params):
             self.showNotification(data['title'], 'New content')
+            util.debug("[SC] UpdateLibrary add_item")
             xbmc.executebuiltin('UpdateLibrary(video)')
         elif not error and not ('notify' in params):
             if new_items is True:
@@ -519,7 +548,7 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
 
                     mtime = 99999999999
                     for iid, data in subs.iteritems():
-                        if iid != 'movie' and int(data['last_run']) < mtime:
+                        if iid != 'movie' and iid != 'traktwatchlist' and int(data['last_run']) < mtime:
                             mtime = int(data['last_run'])
                     sdata = self.provider._json(
                         self.provider._url('/Lib/getLast/%s' % str(mtime)))
@@ -605,34 +634,43 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                 else:
                     util.info("[SC] movie library disabled")
 
+                # kvoli konverzii zo starsich verzii - v buducnosti sa moze zmazat spolu so settingom
+                # vvv
                 if sctop.getSettingAsBool('download-trakt-watchlist'):
-                    util.info("[SC] trakt watchlist enabled")
+                    if not 'traktwatchlist' in subs:
+                        subs['traktwatchlist'] = {'last_run': 0 }
+                    if not 'lists' in subs['traktwatchlist']:
+                        subs['traktwatchlist']['lists'] = {}
+                    tlhash = hashlib.md5("mewatchlist").hexdigest()
+                    if not tlhash in subs['traktwatchlist']['lists']:
+                        subs['traktwatchlist']['lists'][tlhash] = {'tl': 'watchlist', 'tu': 'me', 'title': '[B]$30944[/B]'}
+                    self.setSubs(subs)
+                    sctop.setSetting('download-trakt-watchlist','false')
+                    util.debug("[SC] Old track watchlist added and disabled")
+                # ˆˆˆ
 
-                    if 'traktwatchlist' in subs:
-                        data = subs['traktwatchlist']
-                    else:
-                        data = {'last_run': 0}
-
-                    util.debug("[SC] data: %s" % str(data))
-                    if self.canCheck(data['last_run']) or force is True:
-                        util.debug("[SC] download trakt watchlist")
+                if 'traktwatchlist' in subs and 'lists' in subs['traktwatchlist']:
+                    data = subs['traktwatchlist']
+                    if len(data['lists']) > 0 and (self.canCheck(data['last_run']) or force is True):
                         data['last_run'] = time.time()
                         subs['traktwatchlist'] = data
                         self.setSubs(subs)
-                        # self.run({'action': 'add-to-lib-trakt', 'tl': 'watchlist', 'tu': 'me', 'title': '[B]$30944[/B]'})
-                        self.add_item_trakt({'tl': 'watchlist'})
+                        for __, tldata in data['lists'].iteritems():
+                            util.debug("[SC] download trakt list %s" % tldata['title'])
+                            tldata['noupdate'] = True # disable library update in add_item_trakt()
+                            (e, n) = self.add_item_trakt(tldata)
+                            error |= e
+                            new_items |= n
                     else:
                         util.info(
                             "[SC] download trakt watchlist netreba stahovat")
 
-                else:
-                    util.info("[SC] trakt watchlist disabled")
-
+                util.debug("[SC] UpdateLibrary evalSchedules - new items found ? %s" % new_items)
                 if new_items:
-                    util.debug("[SC] UpdateLibrary")
+                    util.debug("[SC] UpdateLibrary evalSchedules")
                     xbmc.executebuiltin('UpdateLibrary(video)')
                 else:
-                    util.debug("[SC] no UpdateLibrary")
+                    util.debug("[SC] no UpdateLibrary evalSchedules")
                 notified = False
             else:
                 util.info("[SC] Scan skipped")
@@ -741,7 +779,19 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                     self.showNotification(params['title'],
                                           'Removed from subscription')
                     xbmc.executebuiltin('Container.Refresh')
-            if action == 'add-to-lib-sub':
+
+            elif action == 'remove-from-trakt-sub':
+                subs = self.getSubs()
+                util.debug("[SC] remove: %s" % str(params))
+                if params['id'] in subs['traktwatchlist']['lists']:
+                    del subs['traktwatchlist']['lists'][params['id']]
+                    self.setSubs(subs)
+                    self.showNotification(params['title'],
+                                          'Removed from subscription')
+                    xbmc.executebuiltin('Container.Refresh')
+                util.debug("[SC] subs: %s" % str(subs))
+
+            elif action == 'add-to-lib-sub':
                 subs = True
                 action = 'add-to-lib'
             if action == 'add-to-lib':
@@ -752,8 +802,13 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                     self.add_item(params, subs)
                 if subs:
                     xbmc.executebuiltin('Container.Refresh')
+            if action == 'add-to-lib-trakt-sub':
+                subs = True
+                action = 'add-to-lib-trakt'
             if action == 'add-to-lib-trakt':
-                self.add_item_trakt(params)
+                self.add_item_trakt(params, subs)
+                if subs:
+                    xbmc.executebuiltin('Container.Refresh')
                 return
             if action == 'subs':
                 #xbmc.executebuiltin("ActivateWindow(busydialog)")
@@ -767,6 +822,12 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                     self.provider.items(
                         self.provider._url("/Last/?%s" % urllib.urlencode(
                             {'ids': json.dumps(self.getList(params['id']))}))))
+                return self.endOfDirectory()
+            
+            if action == 'subsManager':
+                self.list(
+                    self.provider.items(
+                        data={'menu': self.getSubsList()}))
                 return self.endOfDirectory()
 
             if action[0:5] == 'trakt':
@@ -1480,6 +1541,12 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
 
     @staticmethod
     def encode(string):
+        # translate localized strings
+        parts = string.split("$")
+        for i,x in enumerate(parts):
+            if x[:5].isdigit():
+                parts[i] = sctop.getString(int(x[:5])) + x[5:]
+        string = "".join(parts)
         return unicodedata.normalize('NFKD', string.decode('utf-8')).encode(
             'ascii', 'ignore')
 
@@ -1835,6 +1902,39 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
         self.cache.set("subscription",
                        repr(subs),
                        expiration=timedelta(days=365))
+
+    @bug.buggalo_try_except({'method': 'scutils.getSubsList'})
+    def getSubsList(self):
+        items = []
+        subs = self.getSubs()
+
+        if 'traktwatchlist' in subs and 'lists' in subs['traktwatchlist']:
+            for subid, data in subs['traktwatchlist']['lists'].iteritems():
+                # util.debug('[SCS][SCS][SCS] %s' % data)
+                items += [{
+                    'type': 'dir',
+                    'title': "[COLOR red]TRAKT[/COLOR] "+data['title'],
+                    'id': data['tl'],
+                    'tu': data['tu'],
+                    'tl': data['tl'],
+                    'subid': subid,
+                    'action': 'traktShowList',
+                }]
+
+        for iid, data in subs.iteritems():
+            if (iid == 'movie') or (iid == 'traktwatchlist'):
+                continue
+            items += [{
+                'type': 'dir',
+                'title': data['title'],
+                'id': iid,
+                'season': '00',
+                'url': '/FGet/%s' % iid,
+            }]
+
+        if len(items) == 0:
+            items += [{'type':'dir','title':'$30407'}]
+        return items
 
     @bug.buggalo_try_except({'method': 'scutils.getResumePoint'})
     def getResumePoint(self):

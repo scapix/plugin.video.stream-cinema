@@ -43,6 +43,7 @@ import tracker
 import traceback
 import datetime
 import storagecache
+import hashlib
 
 reload(sys)
 sys.setrecursionlimit(10000)
@@ -416,14 +417,38 @@ class StreamCinemaContentProvider(ContentProvider):
             })
 
         if 'tl' in item:
-            menu.update({
-                "$30918": {
-                    "action": "add-to-lib-trakt",
-                    "tl": item['tl'],
-                    "title": data['title'],
-                    'tu': item['tu'] if 'tu' in item else 'me'
-                }
-            })
+            user = item['tu'] if 'tu' in item else 'me'
+            subid = hashlib.md5(str(user+item['tl'])).hexdigest()
+
+            if 'traktwatchlist' in self.subs and 'lists' in self.subs['traktwatchlist'] and subid in self.subs['traktwatchlist']['lists'].keys():
+                item['title'] = "[COLOR red]*[/COLOR] %s" % item['title']
+                util.debug("[SC] Trakt list je v odoberani: %s" % data['title'])
+                menu.update({
+                    "$30924": {
+                        "action": "remove-from-trakt-sub",
+                        "tl": item['tl'],
+                        'tu': user,
+                        "title": data['title'],
+                        "id": subid,
+                    }
+                })
+            else:
+                menu.update({
+                    "$30918": {
+                        "action": "add-to-lib-trakt",
+                        "tl": item['tl'],
+                        'tu': user,
+                        "title": data['title'],
+                    }
+                })
+                menu.update({
+                    "$30923": {
+                        "action": "add-to-lib-trakt-sub",
+                        "tl": item['tl'],
+                        'tu': user,
+                        "title": data['title'],
+                    }
+                })
 
         if 'list' in item and item['list'] == 'liked':
             menu.update({
