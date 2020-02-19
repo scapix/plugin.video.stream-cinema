@@ -158,7 +158,7 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
         else:
             error = True
 
-        util.debug("[SC] add item: %s" % item_path)
+        # util.debug("[SC] add item: %s" % item_path)
         return (error, new)
 
     @bug.buggalo_try_except({'method': 'scutils._link'})
@@ -185,8 +185,16 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
         n = False
         subs = self.getSubs()
 
-        dialog = xbmcgui.DialogProgress()
-        dialog.create('Stream Cinema CZ & SK', 'Add all to library')
+        try:
+            dialog = params['progressDialog']
+            util.debug('[SCAPE] add_multi_item using already created progressDialog %s'%type(dialog))
+        except:
+            dialog = sctop.progressDialogBG
+            dialog.create(self.encode('Stream Cinema CZ & SK'),
+                self.encode('Adding items to library'))
+            util.debug('[SCAPE] add_multi_item created progressDialog')
+        # dialog = xbmcgui.DialogProgress()
+        # dialog.create('Stream Cinema CZ & SK', 'Add all to library')
 
         data = self.provider._json("%s/Lib/%s" %
                                    (sctop.BASE_URL, params['id']))
@@ -199,24 +207,27 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
 
             for i in data['list']:
                 num += 1
-                perc = float(num / total) * 100
+                perc = int(100.0 * num / total)
                 #util.info("percento: %d" % int(perc))
-                if dialog.iscanceled():
-                    dialog.close()
-                    return
+                # if dialog.iscanceled():
+                #     dialog.close()
+                #     return
 
-                try:
-                    dialog.update(
-                        int(perc), "%s / %s - %s" %
-                        (str(page), str(data['total']), i['title']))
-                except Exception:
-                    util.debug('[SC] ERR: %s' % str(traceback.format_exc()))
-                    pass
+                # try:
+                #     dialog.update(
+                #         int(perc), "%s / %s - %s" %
+                #         (str(page), str(data['total']), i['title']))
+                # except Exception:
+                #     util.debug('[SC] ERR: %s' % str(traceback.format_exc()))
+                #     pass
 
                 param = copy.deepcopy(params)
                 util.debug("I: %s" % str(params))
                 param.update({'id': str(i['id']), 'notify': 1})
-
+                param['progressDialog'] = dialog
+                param['progressPct'] = perc
+                if page > 1:
+                    param['progressPage'] = page 
                 if params['id'] == 'movies':
                     (e, n) = self.add_item(param, addToSubscription, i)
                 else:
@@ -248,7 +259,12 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
             else:
                 data = None
 
-        dialog.close()
+        if not 'progressDialog' in params:
+            util.debug('[SCAPE] add_multi_item closing progressDialog')
+            dialog.close()
+            util.debug('[SCAPE] add_multi_item closed progressDialog')
+
+
         if not error and new_items and not ('update' in params) and not (
                 'notify' in params):
             self.showNotification(self.getString(30901), 'New content')
@@ -276,7 +292,7 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
             out += "http://thetvdb.com/index.php?tab=series&id=%d\n" % int(
                 data['tvdb'])
 
-        util.debug("XML: %s" % out)
+        # util.debug("XML: %s" % out)
         return str(out)
 
     @bug.buggalo_try_except({'method': 'scutils.add_item_trakt'})
@@ -293,28 +309,32 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                 e = False
                 n = False
 
-                dialog = sctop.progressDialogBG
-                dialog.create(self.encode('Stream Cinema CZ & SK'),
-                              self.encode('Adding Trakt list to library - %s' % params['title']))
+                try:
+                    dialog = params['progressDialog']
+                    util.debug('[SCAPE] add_item_trakt using already created progressDialog %s'%type(dialog))
+                except:
+                    dialog = sctop.progressDialogBG
+                    dialog.create(self.encode('Stream Cinema CZ & SK'),
+                        self.encode('Adding items to library - %s' % params['title']))
+                    util.debug('[SCAPE] add_item_trakt created progressDialog')
+
                 total = float(len(data['menu']))
                 num = 0
                 for i in data['menu']:
                     num += 1
-                    perc = float(num / total) * 100
+                    perc = 100.0 * num / total
                     #util.info("percento: %d - (%d / %d)" % (int(perc), int(num), int(total)))
-                    # background dialog cannot be canceled
-                    # if dialog.iscanceled():
-                    #     dialog.close()
-                    #     return
-                    try:
-                        dialog.update(int(perc),
-                                      self.encode('Adding Trakt list to library - %s' % params['title']),
-                                      self.encode("%s" % (i['title'])))
-                    except Exception:
-                        util.debug('[SC] ERR: %s' %
-                                   str(traceback.format_exc()))
-                        pass
+                    # try:
+                    #     dialog.update(int(perc),
+                    #                   self.encode('Adding Trakt list to library - %s' % params['title']),
+                    #                   self.encode("%s" % (i['title'])))
+                    # except Exception:
+                    #     util.debug('[SC] ERR: %s' %
+                    #                str(traceback.format_exc()))
+                    #     pass
                     (e, n) = self.add_item({
+                        'progressDialog': dialog,
+                        'progressPct': perc,
                         'notify': False,
                         'update': False,
                         'id': i['id']
@@ -323,7 +343,10 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                     error |= e
                     new_items |= n
 
-                dialog.close()
+                if not 'progressDialog' in params:
+                    util.debug('[SCAPE] add_item_trakt closing progressDialog')
+                    dialog.close()
+                    util.debug('[SCAPE] add_item_trakt closed progressDialog')
 
                 if not error and addToSubscription:
                     # util.debug("[SCS] adding trakt list to subscription [%s]" % str(params['tl']))
@@ -359,14 +382,16 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                                           'Linking')
         return (error, new_items)
 
-    def add_item_lastrun(self, ids):
+    def add_item_lastrun(self, params, ids):
+        params['notifi'] = 1
+        params['update'] = True
         error = False
         new_items = False
         data = self.provider._json("%s/Lib/multi" % sctop.BASE_URL,
                                    {"ids": json.dumps(ids)})
         if data:
             for i in data:
-                (e, n) = self.add_item({'notifi': 1, 'update': True}, data=i)
+                (e, n) = self.add_item(params, data=i)
                 error |= e
                 new_items |= n
         else:
@@ -384,7 +409,28 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
         if data is None or 'title' not in data:
             return (True, False)
 
+        try:
+            dialog = params['progressDialog']
+            util.debug('[SCAPE] add_item using already created progressDialog %s'%type(dialog))
+        except:
+            dialog = sctop.progressDialogBG
+            dialog.create(self.encode('Stream Cinema CZ & SK'),
+                self.encode('Adding items to library - %s' % params['title']))
+            util.debug('[SCAPE] add_item created progressDialog')
+
+        pct = int(params['progressPct']) if 'progressPct' in params else 100
+
+        # dialog.update(int(perc),
+        #     self.encode('Adding Trakt list to library - %s' % params['title']),
+        #     self.encode("%s" % (i['title'])))
+
         if 'ep' not in data:
+            dialog_title = 'Adding Movie from StreamCinema' if not 'progressPage' in params else 'Adding movie from StreamCinema (page %i)' % params['progressPage']
+            dialog.update(pct,
+                self.encode(dialog_title),
+                self.encode(data['title']))
+            util.debug('[SCAPE] %s - %s (%i)' % (dialog_title,data['title'], pct))
+
             item_dir = self.getSetting('library-movies')
             xml_path = os.path.join(
                 item_dir, self.normalize_filename(data['title']),
@@ -396,6 +442,12 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
             (error,
              new_items) = self.add_item_to_library(item_path, self._link(data))
         else:
+            dialog_title = 'Adding TV Show from StreamCinema' if not 'progressPage' in params else 'Adding TV Show from StreamCinema (page %i)' % params['progressPage']
+            dialog.update(pct,
+                self.encode(dialog_title),
+                self.encode(data['title']))
+            util.debug('[SCAPE] %s - %s (%i)' % (dialog_title, data['title'], pct))
+
             if not ('notify' in params):
                 self.showNotification(data['title'], 'Checking new content')
 
@@ -422,16 +474,22 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                                  self.normalize_filename(data['title']),
                                  'tvshow.nfo'), self.movienfo(data))
 
-            for itm in data['ep']:
+            for num, itm in enumerate(data['ep']):
                 item_path = os.path.join(
                     item_dir, self.normalize_filename(data['title']),
                     'Season ' + itm['season'],
                     "S" + itm['season'] + "E" + itm['episode'] + '.strm')
+
                 (err, new) = self.add_item_to_library(item_path,
                                                       self._link(itm))
                 error |= err
                 if new is True and not err:
                     new_items = True
+
+        if not 'progressDialog' in params:
+            util.debug('[SCAPE] add_item closing progressDialog')
+            dialog.close()
+            util.debug('[SCAPE] add_item closed progressDialog')
 
         if not error and new_items and not ('update' in params) and not (
                 'notify' in params):
@@ -538,13 +596,12 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                 total = len(subs)
                 num = 0
 
+                dialog = sctop.progressDialogBG
+                dialog.create(self.encode('Stream Cinema CZ & SK'),
+                    self.encode('Adding items to library'))
+                util.debug('[SCAPE] evalSchedules created progressDialog')
+
                 if total > 0:
-                    if force is True:
-                        dialog = sctop.progressDialog
-                        dialog.create('Stream Cinema CZ & SK',
-                                      'Add all to library')
-                    else:
-                        dialog = None
 
                     mtime = 99999999999
                     for iid, data in subs.iteritems():
@@ -561,19 +618,19 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                                 perc = 100 * num / total
                                 util.info("percento: %s %d %d" %
                                           (str(perc), int(num), int(total)))
-                                if dialog.iscanceled():
-                                    dialog.close()
-                                    self.setSubs(subs)
-                                    return
+                                # if dialog.iscanceled():
+                                #     dialog.close()
+                                #     self.setSubs(subs)
+                                #     return
 
-                                try:
-                                    dialog.update(int(perc))
-                                except Exception:
-                                    util.debug('[SC] ERR: %s' %
-                                               str(traceback.format_exc()))
-                                    pass
+                                # try:
+                                #     dialog.update(int(perc))
+                                # except Exception:
+                                #     util.debug('[SC] ERR: %s' %
+                                #                str(traceback.format_exc()))
+                                #     pass
 
-                            util.debug("[SC] sub id: %s" % str(iid))
+                            # util.debug("[SC] sub id: %s" % str(iid))
                             if self.monitor.abortRequested():
                                 util.info("[SC] Exiting")
                                 return
@@ -596,7 +653,7 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                                 util.debug("[SC] Refreshing %s" % str(iid))
                                 ids.update({iid: mtime})
                                 if len(ids) >= 20:
-                                    (e, n) = self.add_item_lastrun(ids)
+                                    (e, n) = self.add_item_lastrun({'progressDialog': dialog,'progressPct': perc},ids)
                                     error |= e
                                     new_items |= n
                                     ids = {}
@@ -604,7 +661,7 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                             subs[iid] = data
 
                         if len(ids) > 0:
-                            (e, n) = self.add_item_lastrun(ids)
+                            (e, n) = self.add_item_lastrun({'progressDialog': dialog, 'progressPct': 100},ids)
                             error |= e
                             new_items |= n
 
@@ -612,8 +669,8 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                             self.setSubs(subs)
                         util.debug("[SC] subscription done")
 
-                    if dialog is not None:
-                        dialog.close()
+                    # if dialog is not None:
+                    #     dialog.close()
 
                 if sctop.getSettingAsBool('download-movies'):
                     if 'movie' in subs:
@@ -628,7 +685,7 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                         data['last_run'] = time.time()
                         subs['movie'] = data
                         self.setSubs(subs)
-                        self.add_multi_item({'id': 'movies'}, False)
+                        self.add_multi_item({'progressDialog': dialog, 'id': 'movies'}, False)
                     else:
                         util.info("[SC] movie netreba stahovat")
                 else:
@@ -658,12 +715,19 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                         for __, tldata in data['lists'].iteritems():
                             util.debug("[SC] download trakt list %s" % tldata['title'])
                             tldata['noupdate'] = True # disable library update in add_item_trakt()
+                            tldata['progressDialog'] = dialog
                             (e, n) = self.add_item_trakt(tldata)
                             error |= e
                             new_items |= n
                     else:
                         util.info(
-                            "[SC] download trakt watchlist netreba stahovat")
+                            "[SC] download trakt listy netreba stahovat")
+
+                if dialog is not None:
+                    util.debug('[SCAPE] evalSchedules closing progressDialog')
+                    dialog.close()
+                    util.debug('[SCAPE] evalSchedules closed progressDialog')
+
 
                 util.debug("[SC] UpdateLibrary evalSchedules - new items found ? %s" % new_items)
                 if new_items:
@@ -1278,9 +1342,9 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
                 ]
                 playcount = 1 if len(playcount) > 0 else 0
                 infoLabels['playcount'] = playcount
-                util.debug("[SC] item ma tvdb %s %sx%s %s" %
-                           (str(item.get('tvdb')), str(item.get('season')),
-                            str(item.get('episode')), str(playcount)))
+                # util.debug("[SC] item ma tvdb %s %sx%s %s" %
+                #            (str(item.get('tvdb')), str(item.get('season')),
+                #             str(item.get('episode')), str(playcount)))
         except:
             pass
 
