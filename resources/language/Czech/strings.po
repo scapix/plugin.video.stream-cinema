@@ -197,6 +197,10 @@ msgctxt "#30407"
 msgid "[COLOR red]Empty[/COLOR] (You need to subscribe to some TVShow or Trakt List)"
 msgstr "[COLOR red]Žádný odběr[/COLOR] (přihlaste se k odběru seriálu nebo Trakt seznamu)"
 
+msgctxt "#30408"
+msgid "Show subscription update progress"
+msgstr "Zobrazovat průběh aktualizace odběrů"
+
 msgctxt "#30500"
 msgid "Run internet speed test..."
 msgstr "Spustit test připojení..."

@@ -139,6 +139,9 @@ class StreamCinemaContentProvider(ContentProvider):
             data = self._json(url)
         result = []
         if data is not None and data.get("menu"):
+            # data["menu"].append({u'url': u'/Subs', u'type': u'dir', u'title': u'Subscritions'})
+            # SCAPE
+            data["menu"].append({u'action': u'subsManager', u'type': u'dir', u'img': u'defaultplaylist.png', u'title': u'[B]$30040[/B]'})
             for m in data["menu"]:
                 try:
                     if 'visible' in m and not sctop.getCondVisibility(
@@ -298,19 +301,19 @@ class StreamCinemaContentProvider(ContentProvider):
         code = None
         try:
             if post != False:
-                util.debug("POST URL: %s %s" % (url, str(post)))
+                # util.debug("POST URL: %s %s" % (url, str(post)))
                 (ret, code) = sctop.post(url, post, headers, "extend")
                 self.handleHttpError(code)
                 return ret
-            util.info("GET x URL: %s" % url)
+            # util.info("GET x URL: %s" % url)
             ret = False
             if sctop.getSettingAsBool('usecache') is not False:
-                util.debug("[SC] skusam cache")
+                # util.debug("[SC] skusam cache")
                 ret = self.cache.get(str(url))
             if not ret:
-                util.debug("[SC] url BEZ cache %s" % str(url))
+                # util.debug("[SC] url BEZ cache %s" % str(url))
                 (ret, code, info) = sctop.request(url, headers, "info")
-                util.debug("[SC] code: %s %s" % (str(code), str(info)))
+                # util.debug("[SC] code: %s %s" % (str(code), str(info)))
                 self.handleHttpError(code, data=ret, i=info)
                 if code == 200:
                     ttl = datetime.timedelta(hours=2)
@@ -327,8 +330,9 @@ class StreamCinemaContentProvider(ContentProvider):
                     except:
                         self.cache.set(str(url), ret)
             else:
-                util.debug("[SC] url z cache %s" % str(url))
-            util.debug("[SC] return data")
+                pass
+                # util.debug("[SC] url z cache %s" % str(url))
+            # util.debug("[SC] return data")
             return ret
         except Exception as e:
             inet = sctop.getCondVisibility('System.InternetState')
@@ -599,8 +603,8 @@ class StreamCinemaContentProvider(ContentProvider):
                     }
                 })
         #menu.update({"$30922": {"cmd":'Addon.OpenSettings("%s")' % sctop.__scriptid__}})
-        #menu.update({"run Schedule": {"action": "subs"}})
-        #menu.update({"test": {"action": "test"}})
+        menu.update({"run Schedule": {"action": "subs"}})
+        # menu.update({"test": {"action": "test"}})
         #menu.update({"last": {'cp': 'czsklib', 'list': 'http://stream-cinema.online/json/movies-a-z'}})
 
         item['menu'] = menu

@@ -223,7 +223,11 @@ msgctxt "#30407"
 msgid "[COLOR red]Empty[/COLOR] (You need to subscribe to some TVShow or Trakt List)"
 msgstr ""
 
-#empty strings from id 30408 to 30499
+msgctxt "#30408"
+msgid "Show subscription update progress"
+msgstr ""
+
+#empty strings from id 30409 to 30499
 
 msgctxt "#30500"
 msgid "Run internet speed test..."
