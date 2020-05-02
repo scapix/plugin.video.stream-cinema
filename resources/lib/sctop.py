@@ -304,6 +304,18 @@ def post_json(url, data, headers={}, output="content"):
     else:
         return (data, code)
 
+def executeJSON(request):
+    # =================================================================
+    # Execute JSON-RPC Command
+    # Args:
+    # request: Dictionary with JSON-RPC Commands
+    # Found code in xbmc-addon-service-watchedlist
+    # =================================================================
+    rpccmd = json.dumps(request)  # create string from dict
+    json_query = xbmc.executeJSONRPC(rpccmd)
+    json_query = unicode(json_query, 'utf-8', errors='ignore')
+    json_response = json.loads(json_query)
+    return json_response
 
 def _create_plugin_url(params, plugin=sys.argv[0]):
     url = []

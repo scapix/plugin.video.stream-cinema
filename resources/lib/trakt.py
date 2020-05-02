@@ -382,8 +382,9 @@ def getHistory(user='me'):
     return items
 
 
-def getList(slug, content=None, user='me'):
+def getList(slug, content=None, user='me', excludeIMDBIds=None):
     content = content if content is not None else ''
+    excludeIMDBIds = excludeIMDBIds if excludeIMDBIds is not None else []
     util.debug('[SC] getList slug: %s, content: %s, user: %s' %
                (slug, content, user))
     ratings = False
@@ -416,6 +417,9 @@ def getList(slug, content=None, user='me'):
             content_type = 'videos'
 
         if item_type in i and 'trakt' in i[item_type]['ids']:
+            # ak to mame v exclude, tak to nepridavame do zoznamu
+            if i[item_type]['ids']['imdb'] in excludeIMDBIds:
+                continue
             id = '%d,%d' % (types[item_type], i[item_type]['ids']['trakt'])
             if id not in ids:
                 ids.append(id)

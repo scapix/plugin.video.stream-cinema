@@ -285,10 +285,20 @@ class KODISCLib(xbmcprovider.XBMCMultiResolverContentProvider):
         new_items = False
         if trakt.getTraktCredentialsInfo() == True:
             util.debug("[SC] add_item_trakt: %s" % str(params))
+            # ziskaj vsetky filmy v kodi kniznici a vytvor zoznam z ich IMDB idciek
+            json_response = sctop.executeJSON({"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": { "properties": ["imdbnumber"],}, "id": 1 })
+            IMDBIds = []
+            if 'result' in json_response and 'movies' in json_response['result']:
+                for movie_data in json_response['result']['movies']:
+                    if not movie_data['imdbnumber'] in IMDBIds:
+                        IMDBIds.append(movie_data['imdbnumber'])
+            # ziskaj traktids zo zoznamu okrem tych co uz mame v kniznici (su v IMDBIds)
             user = params['tu'] if 'tu' in params else 'me'
-            __, ids, __ = trakt.getList(params['tl'], user=user)
+            __, ids, __ = trakt.getList(params['tl'], user=user, excludeIMDBIds=IMDBIds)
+            # a k nim udaje zo scinema
             data = self.provider._json(self.provider._url("/Search/getTrakt"),
                                        {'ids': json.dumps(ids)})
+
             if 'menu' in data:
                 e = False
                 n = False
